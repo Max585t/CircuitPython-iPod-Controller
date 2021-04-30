@@ -60,75 +60,76 @@ debug = False
 
 # Udate: There is no discrepency between each table
 # In the iPod linux table, "the mode the command is referring to" is the Lingo ID.
-msg = [] #msg format [Sync, Start, Len, Mode, Command, Param, Checksum]
-msg.append(bytes([0xFF])) # Sync Byte. Always include
-msg.append(bytes([0x55])) # Packet start byte. Always include
 
-uart = busio.UART(board.TX, rx=None, bits=8, parity=None, stop=1, baudrate=19200) #8N1
+def checksum(msg):
+    checksum = 0x00
+    for k in range(2, len(msg)):
+        checksum += msg[k]
+        
+    return 0x100 - (checksum & 0xFF)
+
+# builds the msg that we want to send to the ipod
+def send_to_pod(mode, cmd, param, paramLen):
+    uart = busio.UART(board.TX, rx=None, bits=8, parity=None, stop=1, baudrate=19200) #8N1
+    # SIZE= 1 for mode + 2 for command + N for param
+    msg[2]=1+2+paramLen
+    msg[3]=mode
+    msg[4]=cmd[0]
+    msg[5]=cmd[1]
+
+    # for now, length will always be zero.  if we entered mode 4 this might change...
+    if paramLen == 0:
+        msg[6] = 0
+    else:
+        for j in range(0, paramLen):
+            msg[6+j] = param[j]
+
+    # load up the checksum
+    msg[6+paramLen]=checksum(msg)
+
+    # send the message to the ipod!
+    for j in range(0, (7 + paramLen)):
+        if debug:
+            print(bytes([msg[j]]))
+        else:
+            uart.write(bytes([msg[j]]))
+    if debug:
+        print("\n")
+
+switchMode2 = (1,2)
+buttonRelease = (0,0)
+playPause = (0,1)
+volUp = (0,2)
+volDown = (0,4)
+skipForward = (0,8)
+
+msg = [0] * 10 #msg format [Sync, Start, Len, Mode, Command, Param, Checksum]
+msg[0] = 0xFF # Sync Byte. Always include
+msg[1] = 0x55 # Packet start byte. Always include
+
+params = []
+
+start = time.time()
+send_to_pod(0, switchMode2, params, 0)
+end = time.time()
+print(end-start)
+#msg.append(0x03) # Packet Payload Length
+#msg.append(0x00) # Lingo ID for General Lingo
+#msg.append(0x01) # First command byte
+#msg.append(0x02) # Second command byte
+#msg.append(bytes([checksum(msg)])) # Checksum
 
 time_ran = 0
 while True:
-    if time_ran == 0:
-        time_ran = 1
-        # This puts the iPod into simple remote mode
-        # FF 55 3 0 1 2 FA
-        msg.append(bytes([0x03])) # Packet Payload Length
-        msg.append(bytes([0x00])) # Lingo ID for General Lingo
-        msg.append(bytes([0x01])) # First command byte
-        msg.append(bytes([0x02])) # Second command byte
-        msg.append(bytes([0xFA])) # Checksum
-        # this sends the bytes to the iPod
-        for i in range(0, 7):
-            if debug:
-                print(msg[i], ' ')
-            else:
-                uart.write(msg[i])
     if playButton.value:
         # sends the play command
-        #print('playButton')
-        # FF 55 3 2 0 1 FA 
-        msg[3] = bytes([0x02])
-        msg[4] = bytes([0x00])
-        msg[5] = bytes([0x01])
-        for i in range(0, 7):
-            if debug:
-                print(msg[i], ' ')
-            else:
-                uart.write(msg[i])
+        send_to_pod(0, playPause, params, 0)
         # The release button command
-        # FF 55 3 2 0 0 FB
-        msg[5] = bytes([0x00])
-        msg[6] = bytes([0xFB])
-        for i in range(0, 7):
-            if debug:
-                print(msg[i], ' ')
-            else:
-                uart.write(msg[i])
-        if debug:
-            print('\n')
+        send_to_pod(0, buttonRelease, params, 0)
     if skipButton.value:
         # sends the skip button command
-        #print('skipButton')
-        # FF 55 3 2 0 8 F3 
-        msg[3] = bytes([0x02])
-        msg[4] = bytes([0x00])
-        msg[5] = bytes([0x08])
-        msg[6] = bytes([0xF3])
-        for i in range(0, 7):
-            if debug:
-                print(msg[i], ' ')
-            else:
-                uart.write(msg[i])
-        # sends the release button command
-        # FF 55 3 2 0 0 FB
-        msg[5] = bytes([0x00])
-        msg[6] = bytes([0xFB])
-        for i in range(0, 7):
-            if debug:
-                print(msg[i], ' ')
-            else:
-                uart.write(msg[i])
-        if debug:
-            print('\n')
+        send_to_pod(0, skipForward, params, 0)
+        # The release button command
+        send_to_pod(0, buttonRelease, params, 0)
     time.sleep(0.2)
     
