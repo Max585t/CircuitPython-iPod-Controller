@@ -2,11 +2,10 @@
 This is a work in progress!!!
 
 This lets a circuitpython device play and skip tracks on an ipod using the Apple Accessory Protocol.
-The code is pretty messy but it does (kind of) work.
+The code is pretty messy but it does (mostly) work.
 
 KNOWN ISSUES:
     For some reason, play/pause only plays and only works once.
-    I dont know how to calculate the checksum yet so it is hardcoded
 
 Resources used:
     http://www.ipodlinux.org/Apple_Accessory_Protocol/
